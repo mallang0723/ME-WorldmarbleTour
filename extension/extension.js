@@ -739,8 +739,9 @@ async function mwtGetCharacter(characterId) {
 marinara.addStyle(`
   .mwt-floating-button {
     position: fixed;
-    right: max(16px, env(safe-area-inset-right));
-    top: 96px;
+    right: calc(84px + env(safe-area-inset-right, 0px));
+    bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
     z-index: 9997;
     display: grid;
     width: 48px;
@@ -867,9 +868,97 @@ if (!mwtButton || !mwtPanel) {
   throw new Error("월드마블투어 위젯 UI를 만들 수 없습니다.");
 }
 
+// Device/browser-local UI preference, deliberately separate from chat/game state.
+const MWT_BUTTON_POSITION_KEY = "mwt:ui:button-position";
+const mwtSafeArea = marinara.addElement(document.body, "div", {
+  "aria-hidden": "true",
+  style: "position:fixed;visibility:hidden;pointer-events:none;width:0;height:0;padding:env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);",
+});
+let mwtButtonPosition = null;
+try {
+  const saved = JSON.parse(localStorage.getItem(MWT_BUTTON_POSITION_KEY));
+  if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+    mwtButtonPosition = { x: saved.x, y: saved.y };
+  }
+} catch {
+  // Storage can be disabled or contain an invalid old value.
+}
+
+function mwtButtonBounds() {
+  const viewport = window.visualViewport;
+  const left = viewport?.offsetLeft ?? 0;
+  const top = viewport?.offsetTop ?? 0;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
+  const safe = getComputedStyle(mwtSafeArea);
+  const inset = (side) => parseFloat(safe[side]) || 0;
+  const minX = left + inset("paddingLeft") + 16;
+  const minY = top + inset("paddingTop") + 16;
+  return {
+    minX, minY,
+    maxX: Math.max(minX, left + width - inset("paddingRight") - 16 - mwtButton.offsetWidth),
+    maxY: Math.max(minY, top + height - inset("paddingBottom") - 16 - mwtButton.offsetHeight),
+  };
+}
+
+// Leave a 56px floating-button column plus a 12px gap on fresh installs.
+let mwtDefaultButtonOffset = 56 + 12;
+
+function mwtPlaceButton(position = mwtButtonPosition, avoidFloatingButtons = false) {
+  const bounds = mwtButtonBounds();
+  // Leave 144px above the bottom margin for the composer on a fresh install.
+  const preferred = position ?? { x: bounds.maxX - mwtDefaultButtonOffset, y: bounds.maxY - 144 };
+  const placed = {
+    x: Math.min(bounds.maxX, Math.max(bounds.minX, preferred.x)),
+    y: Math.min(bounds.maxY, Math.max(bounds.minY, preferred.y)),
+  };
+  if (!position && avoidFloatingButtons) {
+    // Look through our own button, including when the other button is below it.
+    const pointerEvents = mwtButton.style.pointerEvents;
+    mwtButton.style.pointerEvents = "none";
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const hit = document.elementFromPoint(placed.x + mwtButton.offsetWidth / 2, placed.y + mwtButton.offsetHeight / 2);
+        const button = hit?.closest("button, [role='button'], input[type='button'], input[type='submit']");
+        if (!button || mwtButton.contains(button)) break;
+        let floating = button;
+        while (floating && getComputedStyle(floating).position !== "fixed") {
+          floating = floating.parentElement;
+        }
+        if (!floating) break;
+        const nextX = Math.max(bounds.minX, placed.x - mwtButton.offsetWidth);
+        if (nextX === placed.x) break;
+        mwtDefaultButtonOffset += placed.x - nextX;
+        placed.x = nextX;
+      }
+    } finally {
+      mwtButton.style.pointerEvents = pointerEvents;
+    }
+  }
+  mwtButton.style.left = `${placed.x}px`;
+  mwtButton.style.top = `${placed.y}px`;
+  mwtButton.style.right = "auto";
+  mwtButton.style.bottom = "auto";
+  return placed;
+}
+
+mwtPlaceButton(mwtButtonPosition, true);
+// Do not overwrite the saved preference when a keyboard or rotation shrinks
+// the viewport; restore it (clamped) when the available space grows again.
+marinara.on(window, "resize", () => mwtPlaceButton());
+if (window.visualViewport) {
+  marinara.on(window.visualViewport, "resize", () => mwtPlaceButton());
+  marinara.on(window.visualViewport, "scroll", () => mwtPlaceButton());
+}
+
 let mwtDrag = null;
+let mwtSuppressButtonClick = false;
+// Keep Marinara's edge-swipe recognizer from starting a gesture on our button.
+marinara.on(mwtButton, "touchstart", (event) => event.stopPropagation());
 marinara.on(mwtButton, "pointerdown", (event) => {
-  if (event.button !== 0 && event.pointerType === "mouse") return;
+  event.stopPropagation();
+  if (mwtDrag || !event.isPrimary || event.button !== 0) return;
+  mwtSuppressButtonClick = false;
   const rect = mwtButton.getBoundingClientRect();
   mwtDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, moved: false };
   try {
@@ -878,33 +967,49 @@ marinara.on(mwtButton, "pointerdown", (event) => {
     // best-effort
   }
 });
-marinara.on(mwtButton, "pointermove", (event) => {
+marinara.on(window, "pointermove", (event) => {
   if (!mwtDrag || event.pointerId !== mwtDrag.pointerId) return;
   if (!mwtDrag.moved) {
     if (Math.hypot(event.clientX - mwtDrag.startX, event.clientY - mwtDrag.startY) < 6) return;
     mwtDrag.moved = true;
+    mwtSuppressButtonClick = true;
     mwtButton.dataset.dragging = "true";
   }
-  const maxX = Math.max(0, window.innerWidth - mwtButton.offsetWidth);
-  const maxY = Math.max(0, window.innerHeight - mwtButton.offsetHeight);
-  mwtButton.style.left = `${Math.min(maxX, Math.max(0, event.clientX - mwtDrag.offsetX))}px`;
-  mwtButton.style.top = `${Math.min(maxY, Math.max(0, event.clientY - mwtDrag.offsetY))}px`;
-  mwtButton.style.right = "auto";
+  mwtPlaceButton({ x: event.clientX - mwtDrag.offsetX, y: event.clientY - mwtDrag.offsetY });
 });
 function mwtEndDrag(event) {
   if (!mwtDrag || event.pointerId !== mwtDrag.pointerId) return;
   const drag = mwtDrag;
   mwtDrag = null;
   delete mwtButton.dataset.dragging;
+  if (event.type !== "pointerup") {
+    mwtSuppressButtonClick = true;
+    mwtPlaceButton();
+  } else if (drag.moved) {
+    const rect = mwtButton.getBoundingClientRect();
+    mwtButtonPosition = mwtPlaceButton({ x: rect.left, y: rect.top });
+    try {
+      localStorage.setItem(MWT_BUTTON_POSITION_KEY, JSON.stringify(mwtButtonPosition));
+    } catch {
+      // Dragging remains usable when localStorage is unavailable or full.
+    }
+  }
   try {
     mwtButton.releasePointerCapture(event.pointerId);
   } catch {
     // already released
   }
-  if (!drag.moved) mwtTogglePanel();
 }
-marinara.on(mwtButton, "pointerup", mwtEndDrag);
-marinara.on(mwtButton, "pointercancel", mwtEndDrag);
+marinara.on(window, "pointerup", mwtEndDrag);
+marinara.on(window, "pointercancel", mwtEndDrag);
+marinara.on(mwtButton, "lostpointercapture", mwtEndDrag);
+marinara.on(mwtButton, "click", (event) => {
+  if (mwtSuppressButtonClick && event.detail !== 0) {
+    event.preventDefault();
+    return;
+  }
+  mwtTogglePanel();
+});
 
 let mwtCurrentChatId = null;
 let mwtCurrentState = null;

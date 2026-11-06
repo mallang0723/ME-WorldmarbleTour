@@ -16,7 +16,7 @@
 원작 그대로(카드 필드에 JSX 삽입)는 마리나라의 콘텐츠 살균 정책상 불가능해서,
 규칙 엔진과 UI를 전부 새로 구현한 클라이언트 확장으로 다시 만들었습니다.
 
-## 설치 (Marinara Engine 2.3.5 / staging)
+## 설치 (테스트 버전: Marinara Engine 2.5.2)
 
 > 2.3.5의 새 확장 체계(Personal Extensions)용으로 포팅된 버전입니다.
 > 정식 2.3.4 이하에서는 동작하지 않습니다.
@@ -48,17 +48,52 @@
    (서드파티 확장 가져오기 허용)를 켭니다.
    *localhost가 아닌 환경(폰·원격)에서는 서버 `.env`의 `ADMIN_SECRET` 값을
    입력해야 위험 구역이 열립니다.*
-3. **가져오기**: **Settings** → **Addons**(애드온) → **External Extensions**
-   (외부 확장)을 엽니다. [**Releases 페이지**](../../releases/latest)에서 내려받은 `marinara-worldmarble-tour.zip` 을 **그대로** 가져옵니다 (압축 해제 불필요).
+3. **가져오기**: 아래의 GitHub 설치 도우미 확장 또는 수동 폴더/파일 가져오기
+   방법을 선택합니다.
 4. **승인**: 목록의 전원 아이콘 → **"전체 페이지 접근"** 고위험 승인 창에서
    **"이 코드 그대로 실행"**. (화면에 버튼·게임판을 그려야 해서 이 권한이
    필요합니다. 확장 파일이 갱신되면 같은 창이 다시 뜹니다 — 정상입니다.)
+
+## GitHub로 설치
+
+테스트 버전은 **Marinara Engine 2.5.2**입니다. 이 버전의
+**Settings → Addons → External Extensions**에는 GitHub 가져오기 항목이 없습니다.
+위의 외부 확장 허용 설정을 마친 뒤, [**ME.Fetchy**](https://github.com/FigCake/ME.Fetchy)
+같은 GitHub 설치 도우미 확장을 설치하고, **도우미 확장의 입력란**에 다음을 입력합니다.
+
+```text
+mallang0723/ME-WorldmarbleTour/extension
+```
+
+`manifest.json`과 `extension.js`가 함께 있는 저장소 내 폴더를 지정한 값입니다. manifest는
+`marinara.personal-extension` 형식이며, 형식 버전은 `1`, 확장 버전은 `1.0.2`입니다.
+`jsPath`는 manifest 기준 상대 경로인 `extension.js`이고, 확장 이름은 기존과 같은
+`월드마블투어`입니다.
+
+가져온 코드를 확인하고 기존과 동일한 **전체 페이지 접근**(`full_page_access`)
+권한을 승인해 활성화합니다. 게임판 표시, 페이지 API 호출 및 브라우저 내 게임
+저장을 위해 기존에 사용하던 권한을 명시한 것이며, 추가 권한은 요청하지 않습니다.
+
+### 수동 폴더/파일 가져오기
+
+설치 도우미 없이 설치하려면 저장소를 다운로드하고 압축을 푼 뒤,
+**Settings → Addons → External Extensions**의 폴더/파일 가져오기를 사용합니다.
+폴더로 가져올 때는 `extension/` 폴더를, 파일로 가져올 때는 그 안의
+`manifest.json`과 `extension.js`를 함께 선택합니다. 가져온 코드를 확인한 뒤
+위 설치 절차의 4단계대로 승인하고 활성화합니다.
+
+기존 **ZIP 수동 가져오기**도 계속 사용할 수 있습니다.
+[**Releases 페이지**](../../releases/latest)의 `marinara-worldmarble-tour.zip`을
+가져오거나, `manifest.json`과 `extension.js`를 ZIP 최상위에 함께 넣어 만듭니다.
+
+변경 내역은 [CHANGELOG.md](./CHANGELOG.md)를 참고하세요.
 
 ## 사용법
 
 1. 채팅을 하나 열어둡니다 (어떤 캐릭터든 상관없음 — 특정 카드에 의존하지 않는
    범용 확장입니다).
-2. 화면 오른쪽의 🎲 버튼을 클릭합니다 (드래그로 위치 이동 가능).
+2. 화면 오른쪽 아래, 입력창 위의 🎲 버튼을 누릅니다. 마우스나 터치로 드래그해
+   옮길 수 있으며, 위치는 기기/브라우저별로 저장됩니다.
 3. 함께 플레이할 상대 캐릭터를 고르고 "게임 시작"을 누릅니다.
 4. 선공이 자동으로 정해지고, 본인 턴에는 "🎲 굴리기" 버튼으로 진행합니다.
    상대(NPC) 턴은 확장이 자동으로 진행하며, 구매/건설/세계여행처럼 주관적
