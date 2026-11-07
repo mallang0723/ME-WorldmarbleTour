@@ -87,9 +87,16 @@ For folder import, select `extension/`. For file import, select both
 `manifest.json` and `extension.js` inside it. Review the code, then approve
 and enable it as described in step 4 above.
 
-**Manual ZIP import** also remains available. Import `marinara-worldmarble-tour.zip`
-from the [**Releases page**](../../releases/latest), or create a ZIP with
-`manifest.json` and `extension.js` together at its root.
+For **manual ZIP import**, build a ZIP from the current source. Run this from the
+repository root; it puts `manifest.json` and `extension.js` together at the ZIP root.
+
+```bash
+(cd extension && zip ../marinara-worldmarble-tour.zip manifest.json extension.js)
+```
+
+With the [**GitHub extension manager**](https://github.com/f-en-rep/Marinara-GitHub-Manager),
+enter only `https://github.com/mallang0723/ME-WorldmarbleTour` and choose
+`extension/manifest.json` under the install target.
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 

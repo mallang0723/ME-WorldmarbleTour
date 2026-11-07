@@ -58,12 +58,24 @@
 
 테스트 버전은 **Marinara Engine 2.5.2**입니다. 이 버전의
 **Settings → Addons → External Extensions**에는 GitHub 가져오기 항목이 없습니다.
-위의 외부 확장 허용 설정을 마친 뒤, [**ME.Fetchy**](https://github.com/FigCake/ME.Fetchy)
-같은 GitHub 설치 도우미 확장을 설치하고, **도우미 확장의 입력란**에 다음을 입력합니다.
+위의 외부 확장 허용 설정을 마친 뒤, 아래 GitHub 설치 도우미 확장 중 하나를
+설치하고 활성화하세요.
 
-```text
-mallang0723/ME-WorldmarbleTour/extension
-```
+- [**ME.Fetchy**](https://github.com/FigCake/ME.Fetchy): **도우미 확장의 입력란**에
+  다음을 입력합니다.
+
+  ```text
+  mallang0723/ME-WorldmarbleTour/extension
+  ```
+
+- [**GitHub 확장 관리자**](https://github.com/f-en-rep/Marinara-GitHub-Manager):
+  저장소 기본 주소만 입력합니다(`/tree/main/...` 경로는 붙이지 않습니다).
+
+  ```text
+  https://github.com/mallang0723/ME-WorldmarbleTour
+  ```
+
+  이어서 "설치 대상 선택"에서 `extension/manifest.json` 항목을 고릅니다.
 
 `manifest.json`과 `extension.js`가 함께 있는 저장소 내 폴더를 지정한 값입니다. manifest는
 `marinara.personal-extension` 형식이며, 형식 버전은 `1`, 확장 버전은 `1.0.2`입니다.
@@ -82,9 +94,12 @@ mallang0723/ME-WorldmarbleTour/extension
 `manifest.json`과 `extension.js`를 함께 선택합니다. 가져온 코드를 확인한 뒤
 위 설치 절차의 4단계대로 승인하고 활성화합니다.
 
-기존 **ZIP 수동 가져오기**도 계속 사용할 수 있습니다.
-[**Releases 페이지**](../../releases/latest)의 `marinara-worldmarble-tour.zip`을
-가져오거나, `manifest.json`과 `extension.js`를 ZIP 최상위에 함께 넣어 만듭니다.
+**ZIP 수동 가져오기**를 쓰려면 현재 소스로 ZIP을 직접 만듭니다. 저장소 루트에서
+다음 명령을 실행하면 `manifest.json`과 `extension.js`가 ZIP 최상위에 함께 들어갑니다.
+
+```bash
+(cd extension && zip ../marinara-worldmarble-tour.zip manifest.json extension.js)
+```
 
 변경 내역은 [CHANGELOG.md](./CHANGELOG.md)를 참고하세요.
 
