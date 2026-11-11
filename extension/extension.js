@@ -563,22 +563,40 @@ async function mwtGenerateForCharacter(chatId, characterId) {
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`생성 요청 실패 (HTTP ${res.status}): ${text.slice(0, 200)}`);
-  const errorMatch = text.match(/"type"\s*:\s*"error"[^}]*"data"\s*:\s*"([^"]*)"/);
-  if (errorMatch) throw new Error(`생성 실패: ${errorMatch[1]}`);
-  if (!/"type"\s*:\s*"done"/.test(text)) throw new Error("생성 완료 신호(done)를 받지 못했습니다.");
-  return true;
+  // v2.5.2 sends SSE even with streaming:false. Reuse the saved response,
+  // including post-processing rewrites, instead of fetching the chat history.
+  let message = null;
+  let done = false;
+  for (const frame of text.split(/\r?\n\r?\n/)) {
+    const data = frame.split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""))
+      .join("\n");
+    if (!data) continue;
+    const event = JSON.parse(data);
+    if (event.type === "error") throw new Error(`생성 실패: ${event.data}`);
+    if (event.type === "done") done = true;
+    if (event.type === "message_saved" && event.data?.role === "assistant"
+      && event.data.chatId === chatId && (!characterId || event.data.characterId === characterId)
+      && typeof event.data.content === "string") {
+      message = event.data;
+    }
+    if (event.type === "text_rewrite" && message && event.data?.messageId === message.id
+      && typeof event.data.editedText === "string") {
+      message = { ...message, content: event.data.editedText };
+    }
+  }
+  if (!done) throw new Error("생성 완료 신호(done)를 받지 못했습니다.");
+  return message ?? mwtGetLatestAssistantMessage(chatId, characterId);
 }
 
-async function mwtGetMessages(chatId) {
-  const res = await mwtApi(`chats/${encodeURIComponent(chatId)}/messages`, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`메시지 조회 실패 (HTTP ${res.status})`);
-  return res.json();
-}
-
-// GET /:id/messages returns oldest-first (packages/server/src/services/storage/chats.storage.ts
-// orders by createdAt ascending) — take from the end for "newest".
+// Compatibility fallback only: one small tail accommodates an adjacent narrator
+// or another character. Never walk backward through the conversation.
 async function mwtGetLatestAssistantMessage(chatId, characterId) {
-  const list = await mwtGetMessages(chatId);
+  const res = await mwtApi(`chats/${encodeURIComponent(chatId)}/messages?limit=3`, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`메시지 조회 실패 (HTTP ${res.status})`);
+  // Paginated results are oldest-first too (chats.storage.ts).
+  const list = await res.json();
   for (let i = list.length - 1; i >= 0; i -= 1) {
     const m = list[i];
     if (m.role === "assistant" && (!characterId || m.characterId === characterId)) return m;
@@ -600,7 +618,7 @@ function mwtStripDecisionTag(content) {
   return (content || "").trim().replace(MWT_DECISION_RE, "").trim();
 }
 
-// 캐릭터에게 주관적 결정을 요청한다: narrator 프롬프트 전송 → /generate → 최신
+// 캐릭터에게 주관적 결정을 요청한다: narrator 프롬프트 전송 → /generate 응답의
 // assistant 메시지에서 [marble-decision: ...] 태그 파싱. 실패 시 1회 정정
 // 재시도 후 안전한 기본값으로 폴백 (게임이 절대 멈추지 않도록).
 // { value, dialogue } 를 반환한다 — dialogue는 태그를 뗀 캐릭터의 실제 대사로,
@@ -608,8 +626,7 @@ function mwtStripDecisionTag(content) {
 async function mwtRequestCharacterDecision(state, seat, decision) {
   const prompt = `${mwtDecisionPrompt(seat, decision)}\n\n${mwtTagInstruction(decision)}`;
   await mwtPostMessage(state.chatId, "narrator", prompt, null);
-  await mwtGenerateForCharacter(state.chatId, seat.characterId);
-  let msg = await mwtGetLatestAssistantMessage(state.chatId, seat.characterId);
+  let msg = await mwtGenerateForCharacter(state.chatId, seat.characterId);
   let tag = msg && mwtParseDecisionTag(msg.content);
 
   if (!tag || tag.key !== decision.kind) {
@@ -619,8 +636,7 @@ async function mwtRequestCharacterDecision(state, seat, decision) {
       `태그 형식이 인식되지 않았습니다. ${mwtTagInstruction(decision)}`,
       null,
     );
-    await mwtGenerateForCharacter(state.chatId, seat.characterId);
-    msg = await mwtGetLatestAssistantMessage(state.chatId, seat.characterId);
+    msg = await mwtGenerateForCharacter(state.chatId, seat.characterId);
     tag = msg && mwtParseDecisionTag(msg.content);
   }
 

@@ -71,7 +71,7 @@ mallang0723/ME-WorldmarbleTour/extension
 
 This identifies the repository folder containing both `manifest.json` and
 `extension.js`. The manifest uses `marinara.personal-extension`, with format
-version `1` and extension version `1.0.2`. Its `jsPath` is the relative path
+version `1` and extension version `1.0.3`. Its `jsPath` is the relative path
 `extension.js`, and the extension name remains `월드마블투어`.
 
 Review the imported code, approve **full page access** (`full_page_access`),
