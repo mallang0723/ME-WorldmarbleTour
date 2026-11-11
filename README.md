@@ -78,7 +78,7 @@
   이어서 "설치 대상 선택"에서 `extension/manifest.json` 항목을 고릅니다.
 
 `manifest.json`과 `extension.js`가 함께 있는 저장소 내 폴더를 지정한 값입니다. manifest는
-`marinara.personal-extension` 형식이며, 형식 버전은 `1`, 확장 버전은 `1.0.2`입니다.
+`marinara.personal-extension` 형식이며, 형식 버전은 `1`, 확장 버전은 `1.0.3`입니다.
 `jsPath`는 manifest 기준 상대 경로인 `extension.js`이고, 확장 이름은 기존과 같은
 `월드마블투어`입니다.
 

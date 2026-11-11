@@ -3,7 +3,7 @@
   "version": 1,
   "config": {
     "name": "월드마블투어",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "2인용 보드게임 확장. 채팅 속 캐릭터와 함께 월드마블투어(블루마블류)를 플레이합니다. 원작: 'AI 채팅 여성향 갤러리'(dcinside)의 여붕이 — https://gall.dcinside.com/mgallery/board/view/?id=aiotomechatting&no=10768 (허락 하에 이식)",
     "runtime": "client",
     "capabilities": ["full_page_access"],
